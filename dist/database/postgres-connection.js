@@ -147,10 +147,13 @@ class PostgreSQLDatabase {
     async getDatabaseInfo() {
         try {
             const tablesResult = await this.query(`
-        SELECT table_name, table_rows
-        FROM information_schema.tables
-        WHERE table_schema = 'public'
-        ORDER BY table_name
+        SELECT
+          t.table_name,
+          COALESCE(s.n_tup_ins - s.n_tup_del, 0) as table_rows
+        FROM information_schema.tables t
+        LEFT JOIN pg_stat_user_tables s ON s.relname = t.table_name
+        WHERE t.table_schema = 'public' AND t.table_type = 'BASE TABLE'
+        ORDER BY t.table_name
       `);
             const sizeResult = await this.query(`
         SELECT pg_size_pretty(pg_database_size(current_database())) as database_size
