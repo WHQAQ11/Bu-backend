@@ -16,13 +16,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 健康检查路由
+// 健康检查路由 - 简化版本，确保快速响应
 app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'ok',
-    message: '每日一卦后端服务运行正常',
-    timestamp: new Date().toISOString()
-  });
+  res.status(200).send('OK');
 });
 
 // API 路由
@@ -49,7 +45,27 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 
 const startServer = async () => {
   try {
-    // 初始化智谱AI服务
+    // 立即启动Express服务器，不等待其他服务
+    const server = app.listen(PORT, () => {
+      console.log(`🚀 后端服务启动成功，端口: ${PORT}`);
+      console.log(`📖 环境: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🔗 API 地址: http://localhost:${PORT}/api`);
+      console.log(`❤️  健康检查: http://localhost:${PORT}/health`);
+    });
+
+    // 在后台初始化其他服务，不阻塞服务器启动
+    initializeBackgroundServices();
+
+  } catch (error) {
+    console.error('❌ 服务器启动失败:', error);
+    process.exit(1);
+  }
+};
+
+// 后台服务初始化
+const initializeBackgroundServices = async () => {
+  try {
+    // 初始化智谱AI服务（可选）
     console.log('🤖 初始化智谱AI服务...');
     const zhipuAIConfig = getZhipuAIConfigFromEnv();
     const zhipuAIService = initializeZhipuAI(zhipuAIConfig);
@@ -75,24 +91,20 @@ const startServer = async () => {
       console.warn('💡 AI解读功能将不可用，请设置 ZHIPUAI_API_KEY 环境变量');
     }
 
-    // 测试数据库连接（但不强制要求）
+    // 测试数据库连接（可选）
     const isConnected = await db.testConnection();
     if (!isConnected) {
       console.warn('⚠️  数据库连接失败，某些功能可能不可用');
       console.warn('💡 请确保 PostgreSQL 已启动并配置正确');
+    } else {
+      console.log('🗄️  数据库状态: 已连接');
     }
 
-    app.listen(PORT, () => {
-      console.log(`🚀 后端服务启动成功，端口: ${PORT}`);
-      console.log(`📖 环境: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`🗄️  数据库状态: ${isConnected ? '已连接' : '未连接'}`);
-      console.log(`🤖 智谱AI状态: ${zhipuValidation.valid ? '已配置' : '未配置'}`);
-      console.log(`🔗 API 地址: http://localhost:${PORT}/api`);
-      console.log(`❤️  健康检查: http://localhost:${PORT}/health`);
-    });
+    console.log(`🤖 智谱AI状态: ${zhipuValidation.valid ? '已配置' : '未配置'}`);
+
   } catch (error) {
-    console.error('❌ 服务器启动失败:', error);
-    process.exit(1);
+    console.warn('⚠️ 后台服务初始化出现警告:', error);
+    console.warn('💡 这不会影响核心服务运行');
   }
 };
 
