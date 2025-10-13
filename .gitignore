@@ -4,8 +4,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Build output
-dist/
+# Build output (保留dist文件夹用于Railway部署)
 build/
 
 # Environment variables
