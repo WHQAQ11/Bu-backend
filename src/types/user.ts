@@ -20,6 +20,7 @@ export interface CreateUserData {
   email: string;
   password_hash: string;
   nickname?: string;
+  bazi_info?: Record<string, any>;
 }
 
 export interface LoginRequest {

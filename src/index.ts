@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
-import { db } from '../database/memory-database';
+import { db } from './database/postgres-connection';
 import { initializeZhipuAI, getZhipuAIConfigFromEnv } from './services/zhipuAI';
 
 dotenv.config();
@@ -91,13 +91,28 @@ const initializeBackgroundServices = async () => {
       console.warn('💡 AI解读功能将不可用，请设置 ZHIPUAI_API_KEY 环境变量');
     }
 
-    // 测试数据库连接（可选）
+    // 测试PostgreSQL数据库连接并运行迁移
     const isConnected = await db.testConnection();
     if (!isConnected) {
-      console.warn('⚠️  数据库连接失败，某些功能可能不可用');
-      console.warn('💡 请确保 PostgreSQL 已启动并配置正确');
+      console.warn('⚠️  PostgreSQL数据库连接失败，某些功能可能不可用');
+      console.warn('💡 请确保Railway PostgreSQL服务已正确配置');
     } else {
-      console.log('🗄️  数据库状态: 已连接');
+      console.log('🗄️  PostgreSQL数据库状态: 已连接');
+
+      // 运行数据库迁移（在后台，不阻塞启动）
+      db.runMigrations().then(() => {
+        console.log('✅ 数据库迁移完成');
+
+        // 获取数据库信息
+        db.getDatabaseInfo().then(info => {
+          if (info) {
+            console.log(`📊 数据库大小: ${info.databaseSize}`);
+            console.log(`📋 数据库表数量: ${info.tables.length}`);
+          }
+        });
+      }).catch(error => {
+        console.warn('⚠️ 数据库迁移失败:', error.message);
+      });
     }
 
     console.log(`🤖 智谱AI状态: ${zhipuValidation.valid ? '已配置' : '未配置'}`);
