@@ -1,2 +1,0 @@
-# Bu-backend
-Backend
