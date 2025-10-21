@@ -37,19 +37,27 @@ exports.ZhipuAIService = void 0;
 exports.initializeZhipuAI = initializeZhipuAI;
 exports.getZhipuAIService = getZhipuAIService;
 exports.getZhipuAIConfigFromEnv = getZhipuAIConfigFromEnv;
+const logger_1 = require("../utils/logger");
 class ZhipuAIService {
     constructor(config) {
         this.config = config;
         this.baseURL = config.baseURL || 'https://open.bigmodel.cn/api/paas/v4';
     }
     async interpretDivination(request) {
+        const startTime = Date.now();
         try {
             if (!this.config.apiKey) {
+                logger_1.logger.error('AI服务', 'API密钥未配置');
                 return {
                     success: false,
                     error: '智谱AI API密钥未配置'
                 };
             }
+            logger_1.logger.aiRequest(request.prompt, {
+                temperature: request.temperature || 0.7,
+                maxTokens: request.maxTokens || 2000,
+                model: 'glm-4-flash'
+            });
             const requestData = {
                 model: 'glm-4-flash',
                 messages: [
@@ -67,6 +75,13 @@ class ZhipuAIService {
                 top_p: 0.9,
                 stream: false
             };
+            logger_1.logger.debug('AI服务', '发送API请求到智谱AI', {
+                url: `${this.baseURL}/chat/completions`,
+                model: requestData.model,
+                temperature: requestData.temperature,
+                maxTokens: requestData.max_tokens,
+                promptLength: request.prompt.length
+            });
             const response = await fetch(`${this.baseURL}/chat/completions`, {
                 method: 'POST',
                 headers: {
@@ -79,14 +94,27 @@ class ZhipuAIService {
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
                 console.error('智谱AI API调用失败:', response.status, errorData);
+                logger_1.logger.error('AI服务', `API调用失败: ${response.status} ${response.statusText}`, {
+                    status: response.status,
+                    statusText: response.statusText,
+                    errorData
+                });
                 return {
                     success: false,
                     error: `智谱AI API调用失败: ${response.status} ${response.statusText}`
                 };
             }
             const responseData = await response.json();
+            logger_1.logger.debug('AI服务', '收到智谱AI响应', {
+                responseStatus: response.status,
+                hasChoices: !!responseData.choices,
+                choicesLength: responseData.choices?.length || 0,
+                hasUsage: !!responseData.usage,
+                responseTime: Date.now() - startTime
+            });
             const interpretation = responseData.choices?.[0]?.message?.content;
             if (!interpretation) {
+                logger_1.logger.error('AI服务', 'AI解读内容为空', { responseData });
                 return {
                     success: false,
                     error: 'AI解读内容为空'
@@ -98,6 +126,11 @@ class ZhipuAIService {
                 totalTokens: responseData.usage.total_tokens || 0
             } : undefined;
             console.log(`✅ 智谱AI解读成功，使用${usage?.totalTokens || 0}个token`);
+            logger_1.logger.aiResponse({
+                success: true,
+                interpretation: interpretation.trim(),
+                usage
+            }, usage);
             return {
                 success: true,
                 interpretation: interpretation.trim(),

@@ -1,6 +1,8 @@
 // 智谱AI API服务
 // 用于集成智谱AI的占卜解读功能
 
+import { logger } from '../utils/logger';
+
 export interface ZhipuAIConfig {
   apiKey: string;
   baseURL?: string;
@@ -36,14 +38,23 @@ export class ZhipuAIService {
 
   // 调用智谱AI API进行占卜解读
   async interpretDivination(request: AIInterpretationRequest): Promise<AIInterpretationResponse> {
+    const startTime = Date.now();
     try {
       // 验证API密钥
       if (!this.config.apiKey) {
+        logger.error('AI服务', 'API密钥未配置');
         return {
           success: false,
           error: '智谱AI API密钥未配置'
         };
       }
+
+      // 记录请求详情
+      logger.aiRequest(request.prompt, {
+        temperature: request.temperature || 0.7,
+        maxTokens: request.maxTokens || 2000,
+        model: 'glm-4-flash'
+      });
 
       // 构建请求数据
       const requestData = {
@@ -64,6 +75,14 @@ export class ZhipuAIService {
         stream: false
       };
 
+      logger.debug('AI服务', '发送API请求到智谱AI', {
+        url: `${this.baseURL}/chat/completions`,
+        model: requestData.model,
+        temperature: requestData.temperature,
+        maxTokens: requestData.max_tokens,
+        promptLength: request.prompt.length
+      });
+
       // 发送API请求
       const response = await fetch(`${this.baseURL}/chat/completions`, {
         method: 'POST',
@@ -78,6 +97,11 @@ export class ZhipuAIService {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('智谱AI API调用失败:', response.status, errorData);
+        logger.error('AI服务', `API调用失败: ${response.status} ${response.statusText}`, {
+          status: response.status,
+          statusText: response.statusText,
+          errorData
+        });
 
         return {
           success: false,
@@ -87,10 +111,19 @@ export class ZhipuAIService {
 
       const responseData = await response.json() as any;
 
+      logger.debug('AI服务', '收到智谱AI响应', {
+        responseStatus: response.status,
+        hasChoices: !!responseData.choices,
+        choicesLength: responseData.choices?.length || 0,
+        hasUsage: !!responseData.usage,
+        responseTime: Date.now() - startTime
+      });
+
       // 提取AI解读内容
       const interpretation = responseData.choices?.[0]?.message?.content;
 
       if (!interpretation) {
+        logger.error('AI服务', 'AI解读内容为空', { responseData });
         return {
           success: false,
           error: 'AI解读内容为空'
@@ -105,6 +138,15 @@ export class ZhipuAIService {
       } : undefined;
 
       console.log(`✅ 智谱AI解读成功，使用${usage?.totalTokens || 0}个token`);
+
+      logger.aiResponse(
+        {
+          success: true,
+          interpretation: interpretation.trim(),
+          usage
+        },
+        usage
+      );
 
       return {
         success: true,

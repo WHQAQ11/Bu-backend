@@ -1,6 +1,8 @@
 // AI 提示词构造器
 // 用于生成智谱AI的专业占卜解读提示词
 
+import { logger } from '../utils/logger';
+
 export interface DivinationContext {
   method: 'liuyao' | 'meihua' | 'zhouyi';
   question: string;
@@ -44,6 +46,18 @@ export class AIPromptBuilder {
     const includeAdvice = options.includeAdvice !== false;
     const includeWarnings = options.includeWarnings !== false;
 
+    logger.debug('提示词构造', '开始构造AI提示词', {
+      method: context.method,
+      question: context.question,
+      guaName: context.guaName,
+      guaNumber: context.guaInfo.number,
+      options: { style, focus, language, includeAdvice, includeWarnings }
+    });
+
+    // 获取卦象数据并记录
+    const hexagramData = this.getHexagramData(context.guaInfo.number);
+    logger.hexagramData(hexagramData);
+
     let prompt = this.buildSystemPrompt();
     prompt += this.buildEnhancedContextPrompt(context, style, language);
     prompt += this.buildHexagramSpecificAnalysis(context);
@@ -62,6 +76,8 @@ export class AIPromptBuilder {
     }
 
     prompt += this.buildOutputFormatPrompt(language);
+
+    logger.promptConstruction(context, prompt);
 
     return prompt;
   }

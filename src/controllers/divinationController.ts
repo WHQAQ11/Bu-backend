@@ -9,10 +9,12 @@ import {
   UserStatsResponse,
   DivinationLogListResponse
 } from '../types/divination';
+import { logger } from '../utils/logger';
 
 export class DivinationController {
   // 执行占卜
   static async calculate(req: Request, res: Response): Promise<void> {
+    const startTime = Date.now();
     try {
       const userId = (req as any).user?.id; // 从JWT token中获取用户ID
       if (!userId) {
@@ -20,11 +22,16 @@ export class DivinationController {
           success: false,
           message: '用户未登录'
         };
+        logger.apiResponse('/api/divination/calculate', response, Date.now() - startTime);
         res.status(401).json(response);
         return;
       }
 
       const { method, question, input_data }: DivinationRequest = req.body;
+
+      // 记录占卜请求
+      logger.divinationRequest(question, method, userId);
+      logger.debug('占卜请求', '接收到的请求数据', { method, question, input_data });
 
       // 输入验证
       if (!method || !question) {
@@ -75,13 +82,25 @@ export class DivinationController {
       }
 
       if (result.error) {
+        logger.error('占卜计算', `占卜计算失败: ${result.error}`, { method, question, result });
         const response: DivinationResponse = {
           success: false,
           message: result.error
         };
+        logger.apiResponse('/api/divination/calculate', response, Date.now() - startTime);
         res.status(500).json(response);
         return;
       }
+
+      // 记录占卜结果
+      logger.divinationResult(result, userId);
+      logger.debug('占卜结果', '占卜计算完成', {
+        hexagramName: result.name,
+        hexagramNumber: result.number,
+        originalGua: result.originalGua,
+        changedGua: result.changedGua,
+        interpretation: result.interpretation
+      });
 
       // 保存占卜记录到数据库
       const logData = {
@@ -110,6 +129,7 @@ export class DivinationController {
       };
 
       console.log(`✅ 用户${userId}完成${method}占卜: ${question}`);
+      logger.apiResponse('/api/divination/calculate', response, Date.now() - startTime);
       res.status(201).json(response);
 
     } catch (error) {
@@ -343,6 +363,7 @@ export class DivinationController {
 
   // AI解卦接口
   static async interpret(req: Request, res: Response): Promise<void> {
+    const startTime = Date.now();
     try {
       const userId = (req as any).user?.id;
       if (!userId) {
@@ -350,11 +371,14 @@ export class DivinationController {
           success: false,
           message: '用户未登录'
         };
+        logger.apiResponse('/api/divination/interpret', response, Date.now() - startTime);
         res.status(401).json(response);
         return;
       }
 
       const { log_id, style, focus, language } = req.body;
+
+      logger.debug('AI解读请求', '用户请求AI解读', { userId, log_id, style, focus, language });
 
       // 输入验证
       if (!log_id) {
@@ -454,6 +478,14 @@ export class DivinationController {
 
       const { method, question, result } = divinationData;
 
+      logger.debug('AI解读', '开始调用智谱AI', {
+        question,
+        method,
+        hexagramName: result.name,
+        hexagramInfo: result,
+        focus: focus || 'general'
+      });
+
       // 调用智谱AI进行解读
       const zhipuAIService = getZhipuAIService();
       const aiResponse = await zhipuAIService.detailedInterpret(
@@ -465,13 +497,28 @@ export class DivinationController {
       );
 
       if (!aiResponse.success) {
+        logger.error('AI解读', `AI解读失败: ${aiResponse.error}`, {
+          question,
+          method,
+          hexagramName: result.name,
+          error: aiResponse.error
+        });
         const response: DivinationResponse = {
           success: false,
           message: `AI解读失败: ${aiResponse.error}`
         };
+        logger.apiResponse('/api/divination/interpret', response, Date.now() - startTime);
         res.status(500).json(response);
         return;
       }
+
+      logger.debug('AI解读', 'AI解读成功', {
+        question,
+        method,
+        hexagramName: result.name,
+        interpretationLength: aiResponse.interpretation?.length || 0,
+        usage: aiResponse.usage
+      });
 
       // 更新占卜记录的AI解读
       await DivinationLogModel.updateAIInterpretation(log.id, aiResponse.interpretation || '');
@@ -491,6 +538,7 @@ export class DivinationController {
       };
 
       console.log(`✅ 用户${userId}完成AI解读: ${question}`);
+      logger.apiResponse('/api/divination/interpret', response, Date.now() - startTime);
       res.status(200).json(response);
 
     } catch (error) {

@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AIPromptBuilder = void 0;
+const logger_1 = require("../utils/logger");
 class AIPromptBuilder {
     static buildDivinationPrompt(context, options = {}) {
         const style = options.style || 'detailed';
@@ -8,6 +9,15 @@ class AIPromptBuilder {
         const language = options.language || 'chinese';
         const includeAdvice = options.includeAdvice !== false;
         const includeWarnings = options.includeWarnings !== false;
+        logger_1.logger.debug('提示词构造', '开始构造AI提示词', {
+            method: context.method,
+            question: context.question,
+            guaName: context.guaName,
+            guaNumber: context.guaInfo.number,
+            options: { style, focus, language, includeAdvice, includeWarnings }
+        });
+        const hexagramData = this.getHexagramData(context.guaInfo.number);
+        logger_1.logger.hexagramData(hexagramData);
         let prompt = this.buildSystemPrompt();
         prompt += this.buildEnhancedContextPrompt(context, style, language);
         prompt += this.buildHexagramSpecificAnalysis(context);
@@ -22,6 +32,7 @@ class AIPromptBuilder {
             prompt += this.buildWarningsPrompt(language);
         }
         prompt += this.buildOutputFormatPrompt(language);
+        logger_1.logger.promptConstruction(context, prompt);
         return prompt;
     }
     static buildSystemPrompt() {
