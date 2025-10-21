@@ -83,7 +83,7 @@ export const COMPLETE_HEXAGRAMS: HexagramData[] = [
       career: '适合从事辅助性、支持性工作，以柔克刚。踏实稳重，必有所成。',
       relationship: '关系温和包容，善解人意。要学会适当表达自己的想法，不要过度隐忍。',
       health: '身体状况稳定，注意脾胃保养。饮食有节，作息规律。',
-     财富: '财运平稳增长，适合储蓄理财。不宜投机冒险，稳健为上。'
+      wealth: '财运平稳增长，适合储蓄理财。不宜投机冒险，稳健为上。'
     }
   },
   {
@@ -293,7 +293,7 @@ export const COMPLETE_HEXAGRAMS: HexagramData[] = [
       career: '事业需要逐步积累经验。不要急于求成，扎实基础，循序渐进。',
       relationship: '感情发展要循序渐进。相互了解，慢慢加深感情。',
       health: '健康需要长期调养。保持良好的生活习惯，循序渐进改善体质。',
-     财富: '财运需要逐步积累。做好储蓄计划，为未来做准备。'
+    wealth: '财运需要逐步积累。做好储蓄计划，为未来做准备。'
     }
   },
   {
@@ -325,7 +325,7 @@ export const COMPLETE_HEXAGRAMS: HexagramData[] = [
       health: '注意安全，避免意外伤害。保持谨慎的生活态度。',
       wealth: '财运需要谨慎理财。遵守理财原则，避免冒险投资。'
     }
-  }
+  },
   {
     number: 11,
     name: '泰',
