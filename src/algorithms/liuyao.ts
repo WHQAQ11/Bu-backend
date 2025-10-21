@@ -51,16 +51,8 @@ const TRIGRAMS = {
   dui: { name: '兑', symbol: '☱', nature: '泽', attribute: '说', number: 2 }
 };
 
-// 六十四卦信息
-const HEXAGRAMS = [
-  { number: 1, name: '乾', upper: 'qian', lower: 'qian', guaci: '乾：元，亨，利，贞。' },
-  { number: 2, name: '坤', upper: 'kun', lower: 'kun', guaci: '坤：元，亨，利牝马之贞。' },
-  { number: 3, name: '屯', upper: 'kan', lower: 'zhen', guaci: '屯：元，亨，利，贞。勿用有攸往，利建侯。' },
-  { number: 4, name: '蒙', upper: 'gen', lower: 'kan', guaci: '蒙：亨。匪我求童蒙，童蒙求我。初筮告，再三渎，渎则不告。利贞。' },
-  { number: 5, name: '需', upper: 'kan', lower: 'qian', guaci: '需：有孚，光亨，贞吉。利涉大川。' },
-  { number: 6, name: '讼', upper: 'qian', lower: 'kan', guaci: '讼：有孚，窒。惕中吉。终凶。利见大人，不利涉大川。' },
-  // ... 继续定义其他卦象
-];
+// 导入完整的六十四卦数据库
+import { COMPLETE_HEXAGRAMS, getHexagramByNumber, detectQuestionType, getQuestionTypeName } from '../data/hexagramDatabase';
 
 // 模拟铜钱摇卦
 export function simulateCoinToss(): number {
@@ -120,9 +112,9 @@ export function createGua(yaoValues: number[]): Gua {
   const upperTrigram = TRIGRAMS[upperTrigramKey as keyof typeof TRIGRAMS];
 
   // 查找对应的六十四卦
-  const hexagram = HEXAGRAMS.find(h =>
+  const hexagram = COMPLETE_HEXAGRAMS.find(h =>
     h.upper === upperTrigramKey && h.lower === lowerTrigramKey) ||
-    { number: 1, name: '乾', upper: 'qian', lower: 'qian', guaci: '乾：元，亨，利，贞。' };
+    COMPLETE_HEXAGRAMS[0]; // fallback to 乾卦
 
   // 检查是否有动爻，计算变卦
   let changedGua: Gua | undefined;
@@ -148,9 +140,14 @@ export function createGua(yaoValues: number[]): Gua {
     yaos,
     changedGua,
     properties: {
-      wuxing: getWuxingAttribute(hexagram.number),
+      wuxing: hexagram.elements.wuxing,
       bagua: getBaguaAttribute(hexagram.number),
-      yuanyang: getYuanyangAttribute(hexagram.number)
+      yuanyang: getYuanyangAttribute(hexagram.number),
+      symbolism: hexagram.symbolism,
+      season: hexagram.elements.season,
+      direction: hexagram.elements.direction,
+      nature: hexagram.elements.nature,
+      relationship: hexagram.elements.relationship
     }
   };
 }
@@ -204,9 +201,11 @@ export function performDivination(question: string): DivinationResult {
   // 创建本卦
   const originalGua = createGua(yaoValues);
 
-  // 生成基础解释
-  const hexagram = HEXAGRAMS.find(h => h.number === originalGua.number) ||
-    { number: 1, name: '乾', upper: 'qian', lower: 'qian', guaci: '乾：元，亨，利，贞。' };
+  // 获取完整的卦象数据
+  const hexagram = getHexagramByNumber(originalGua.number) || COMPLETE_HEXAGRAMS[0];
+
+  // 检测问题类型
+  const questionType = detectQuestionType(question);
 
   return {
     method: 'liuyao',
@@ -215,63 +214,66 @@ export function performDivination(question: string): DivinationResult {
     changedGua: originalGua.changedGua,
     interpretation: {
       guaci: hexagram.guaci,
-      yaoci: generateYaoci(originalGua.yaos),
-      shiyi: generateShiyi(originalGua),
-      analysis: generateAnalysis(originalGua, question)
+      yaoci: generateDynamicYaoci(originalGua.yaos, hexagram),
+      shiyi: hexagram.shiyi,
+      analysis: generateEnhancedAnalysis(originalGua, hexagram, question, questionType)
     },
     timestamp: new Date()
   };
 }
 
-// 生成爻辞
-function generateYaoci(yaos: Yao[]): string[] {
-  const yaociTexts = [
-    '初九：潜龙，勿用。',
-    '九二：见龙在田，利见大人。',
-    '九三：君子终日乾乾，夕惕若，厉无咎。',
-    '九四：或跃在渊，无咎。',
-    '九五：飞龙在天，利见大人。',
-    '上九：亢龙有悔。'
-  ];
-
+// 生成动态爻辞（基于具体卦象）
+function generateDynamicYaoci(yaos: Yao[], hexagram: any): string[] {
   return yaos.map((yao, index) => {
-    if (yao.isChanging) {
-      return `${['初', '二', '三', '四', '五', '上'][index]}${yao.yinYang === 'yin' ? '六' : '九'}：${yaociTexts[index] || '爻辞待补'} 【动爻】`;
-    }
-    return `${['初', '二', '三', '四', '五', '上'][index]}${yao.yinYang === 'yin' ? '六' : '九'}：${yaociTexts[index] || '爻辞待补'}`;
+    const yaociText = hexagram.yaoci?.[index] || '爻辞待补';
+    return `${['初', '二', '三', '四', '五', '上'][index]}${yao.yinYang === 'yin' ? '六' : '九'}：${yaociText}${yao.isChanging ? ' 【动爻】' : ''}`;
   });
 }
 
-// 生成十翼解释
-function generateShiyi(gua: Gua): string {
-  return `《彖》曰：大哉乾元，万物资始，乃统天。云行雨施，品物流形。大明始终，六位时成，时乘六龙以御天。`;
-}
-
-// 生成综合分析
-function generateAnalysis(gua: Gua, question: string): string {
+// 生成增强的综合分析
+function generateEnhancedAnalysis(gua: Gua, hexagram: any, question: string, questionType: string): string {
   const changingCount = gua.yaos.filter(y => y.isChanging).length;
 
   let analysis = `问卦：${question}\n\n`;
   analysis += `得卦为${gua.name}卦（第${gua.number}卦），${gua.lowerTrigram}上${gua.upperTrigram}下。\n\n`;
 
-  if (changingCount > 0) {
-    analysis += `卦中${changingCount}个动爻，将变为${gua.changedGua?.name}卦。\n\n`;
+  // 添加卦象特有信息
+  analysis += `卦象本质：${hexagram.symbolism}\n`;
+  analysis += `五行属性：${hexagram.elements.wuxing}（${hexagram.elements.nature}）\n`;
+  analysis += `时空特征：${hexagram.elements.direction}方位，${hexagram.elements.season}季\n`;
+  analysis += `关系特征：${hexagram.elements.relationship}\n\n`;
+
+  // 变卦分析
+  if (changingCount > 0 && gua.changedGua) {
+    const changedHexagram = getHexagramByNumber(gua.changedGua.number);
+    if (changedHexagram) {
+      analysis += `变卦分析：卦中有${changingCount}个动爻，将变为${gua.changedGua.name}卦。\n`;
+      analysis += `从${hexagram.elements.relationship}转变为${changedHexagram.elements.relationship}，`;
+      analysis += `象征着从${hexagram.nature}到${changedHexagram.elements.nature}的演变。\n\n`;
+    }
+  } else {
+    analysis += `卦象特征：此为静卦，${hexagram.elements.relationship}，状态稳定。\n\n`;
   }
 
-  analysis += `此卦${gua.properties.yuanyang}，五行属${gua.properties.wuxing}，`;
-  analysis += `在${gua.properties.bagua}宫，象征着${getGuaSymbolism(gua.name)}。\n\n`;
+  // 根据问题类型提供针对性分析
+  if (questionType !== 'general' && hexagram.analysis[questionType]) {
+    analysis += `针对"${question}"的${getQuestionTypeName(questionType)}分析：\n`;
+    analysis += `${hexagram.analysis[questionType]}\n\n`;
+  }
 
-  analysis += `总体来看，此卦显示`;
+  // 综合指导
+  analysis += `综合指导：\n`;
+  analysis += `此卦${gua.properties.yuanyang}，${hexagram.elements.relationship}。`;
+  analysis += `建议保持${hexagram.elements.nature}的态度，`;
 
-  // 根据卦象给出基本判断
-  if (gua.number <= 10) {
-    analysis += '事情刚开始，需要耐心等待时机，不可急躁冒进。';
-  } else if (gua.number <= 30) {
-    analysis += '事情处于发展阶段，需要坚持努力，保持谨慎。';
-  } else if (gua.number <= 50) {
-    analysis += '事情已进入关键阶段，需要把握机会，果断行动。';
+  if (hexagram.elements.nature === '刚健' || hexagram.elements.nature === '创造') {
+    analysis += '积极主动，但要注意适度，不要过度。';
+  } else if (hexagram.elements.nature === '柔顺' || hexagram.elements.nature === '包容') {
+    analysis += '温和渐进，顺其自然，但不要消极被动。';
+  } else if (hexagram.elements.nature === '等待' || hexagram.elements.nature === '积蓄') {
+    analysis += '耐心准备，当时机成熟时果断行动。';
   } else {
-    analysis += '事情接近完成，需要善始善终，注意收尾工作。';
+    analysis += '根据实际情况灵活应对，保持中庸之道。';
   }
 
   return analysis;
