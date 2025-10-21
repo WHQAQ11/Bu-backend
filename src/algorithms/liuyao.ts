@@ -21,6 +21,11 @@ export interface Gua {
     wuxing: string; // 五行属性
     bagua: string; // 八宫归属
     yuanyang: string; // 乾坤属性
+    symbolism?: string; // 卦象象征
+    season?: string; // 季节
+    direction?: string; // 方位
+    nature?: string; // 性质
+    relationship?: string; // 关系特征
   };
 }
 

@@ -10,6 +10,7 @@ export interface DivinationContext {
     upperTrigram: string;
     lowerTrigram: string;
     changingYao?: number;
+    changedGua?: { name: string; number: number; };
     interpretation: {
       guaci: string;
       yaoci?: string[];
