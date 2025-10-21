@@ -7,6 +7,10 @@ export interface DivinationContext {
         upperTrigram: string;
         lowerTrigram: string;
         changingYao?: number;
+        changedGua?: {
+            name: string;
+            number: number;
+        };
         interpretation: {
             guaci: string;
             yaoci?: string[];
@@ -32,10 +36,12 @@ export interface PromptOptions {
 export declare class AIPromptBuilder {
     static buildDivinationPrompt(context: DivinationContext, options?: PromptOptions): string;
     private static buildSystemPrompt;
-    private static buildContextPrompt;
+    private static buildEnhancedContextPrompt;
+    private static buildHexagramSpecificAnalysis;
+    private static buildQuestionHexagramCorrelation;
     private static buildDivinationAnalysis;
-    private static buildFocusPrompt;
-    private static buildAdvicePrompt;
+    private static buildDynamicFocusPrompt;
+    private static buildEnhancedAdvicePrompt;
     private static buildWarningsPrompt;
     private static buildOutputFormatPrompt;
     private static getMethodName;
@@ -43,5 +49,8 @@ export declare class AIPromptBuilder {
     static buildQuickPrompt(context: DivinationContext): string;
     static buildEnglishPrompt(context: DivinationContext, options?: PromptOptions): string;
     static buildEmotionalPrompt(context: DivinationContext, options?: PromptOptions): string;
+    private static getHexagramData;
+    private static detectQuestionType;
+    private static getQuestionTypeName;
 }
 //# sourceMappingURL=aiPromptBuilder.d.ts.map

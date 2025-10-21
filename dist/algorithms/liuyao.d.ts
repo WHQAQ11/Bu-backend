@@ -15,6 +15,11 @@ export interface Gua {
         wuxing: string;
         bagua: string;
         yuanyang: string;
+        symbolism?: string;
+        season?: string;
+        direction?: string;
+        nature?: string;
+        relationship?: string;
     };
 }
 export interface DivinationResult {
